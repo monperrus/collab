@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import WebSocket from 'ws'
-import { WebsocketProvider } from 'y-websocket'
+import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
 import chokidar from 'chokidar'
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
@@ -45,18 +45,13 @@ const openConnections = new Map()
 const ownWrites = new Map() // track writes we initiated to suppress chokidar echo
 
 function ensureConnected(docName) {
-  if (openConnections.has(docName)) return
+  if (!docName || openConnections.has(docName)) return
 
   const filePath = join(FOLDER, docName)
-  if (!filePath.startsWith(FOLDER + '/')) return // path traversal guard
+  if (!filePath.startsWith(FOLDER + '/')) return // path traversal / empty-name guard
+  if (!existsSync(filePath)) return // only sync files that exist locally
 
   const ydoc = new Y.Doc()
-  const provider = new WebsocketProvider(RELAY_WS, docName, ydoc, {
-    WebSocketPolyfill: WebSocket,
-  })
-
-  openConnections.set(docName, { ydoc, provider, filePath })
-
   const ytext = ydoc.getText('content')
   let initialized = false
 
@@ -67,23 +62,30 @@ function ensureConnected(docName) {
     }
   }, 300)
 
-  // 'sync' fires once the relay has sent its full document state
-  provider.on('sync', synced => {
-    if (!synced || initialized) return
-    initialized = true
+  const provider = new HocuspocusProvider({
+    url: RELAY_WS,
+    name: docName,
+    document: ydoc,
+    WebSocketPolyfill: WebSocket,
+    onSynced: () => {
+      if (initialized) return
+      initialized = true
 
-    // Push disk content if relay doc is empty (first open)
-    if (ytext.length === 0 && existsSync(filePath)) {
-      try {
-        ytext.insert(0, readFileSync(filePath, 'utf-8'))
-      } catch (e) { console.error('[push]', docName, e.message) }
-    }
+      // Push disk content if relay doc is empty (first open)
+      if (ytext.length === 0 && existsSync(filePath)) {
+        try {
+          ytext.insert(0, readFileSync(filePath, 'utf-8'))
+        } catch (e) { console.error('[push]', docName, e.message) }
+      }
 
-    // Propagate relay (browser) edits back to disk
-    ytext.observe(() => writeDebounced(ytext.toString()))
+      // Propagate relay (browser) edits back to disk
+      ytext.observe(() => writeDebounced(ytext.toString()))
 
-    console.log('[open]', docName)
+      console.log('[open]', docName)
+    },
   })
+
+  openConnections.set(docName, { ydoc, provider, filePath })
 }
 
 // ── Control plane: WebSocket to relay ─────────────────────────────────────

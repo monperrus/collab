@@ -12,11 +12,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@hocuspocus/server": "^2.14.1",
-    "chokidar": "^4.0.3",
-    "express": "^4.21.2",
-    "ws": "^8.18.1",
-    "yjs": "^13.6.27",
     "@codemirror/commands": "^6.8.1",
     "@codemirror/lang-css": "^6.3.1",
     "@codemirror/lang-html": "^6.4.10",
@@ -26,9 +21,15 @@
     "@codemirror/lang-python": "^6.1.7",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.36.6",
+    "@hocuspocus/provider": "^2.14.1",
+    "@hocuspocus/server": "^2.14.1",
+    "chokidar": "^4.0.3",
     "codemirror": "^6.0.1",
     "esbuild": "^0.24.2",
+    "express": "^4.21.2",
+    "ws": "^8.18.1",
     "y-codemirror.next": "^0.3.5",
-    "y-websocket": "^2.1.0"
+    "y-websocket": "^2.1.0",
+    "yjs": "^13.6.27"
   }
 }
