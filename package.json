@@ -1,0 +1,34 @@
+{
+  "name": "collab-folder",
+  "version": "1.0.0",
+  "description": "CLI tool: watch a local folder, edit collaboratively in real-time from any browser",
+  "type": "module",
+  "bin": {
+    "collab-folder": "./server.js"
+  },
+  "scripts": {
+    "build": "esbuild src/client.js --bundle --outfile=public/bundle.js --format=esm",
+    "prepare": "npm run build",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.14.1",
+    "chokidar": "^4.0.3",
+    "express": "^4.21.2",
+    "ws": "^8.18.1",
+    "yjs": "^13.6.27",
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.10",
+    "@codemirror/lang-javascript": "^6.2.3",
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/lang-markdown": "^6.3.2",
+    "@codemirror/lang-python": "^6.1.7",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.6",
+    "codemirror": "^6.0.1",
+    "esbuild": "^0.24.2",
+    "y-codemirror.next": "^0.3.5",
+    "y-websocket": "^2.1.0"
+  }
+}
