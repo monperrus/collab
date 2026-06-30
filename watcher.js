@@ -3,15 +3,17 @@ import WebSocket from 'ws'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
 import chokidar from 'chokidar'
+import { randomBytes } from 'crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join, relative, resolve } from 'path'
 
 const FOLDER = resolve(process.argv[2] || '.')
 const RELAY_WS = (process.argv[3] || 'wss://collab.gakoy.com').replace(/\/$/, '')
 const RELAY_HTTP = RELAY_WS.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
+const TOKEN = randomBytes(16).toString('hex')
 
 console.log(`Watching : ${FOLDER}`)
-console.log(`Editor   : ${RELAY_HTTP}`)
+console.log(`Editor   : ${RELAY_HTTP}/?token=${TOKEN}`)
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -39,17 +41,17 @@ function debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms) }
 }
 
-// ── Per-file Yjs connections to the relay ─────────────────────────────────
+// ── Per-file HocuspocusProvider connections to the relay ──────────────────
 
 const openConnections = new Map()
-const ownWrites = new Map() // track writes we initiated to suppress chokidar echo
+const ownWrites = new Map()
 
 function ensureConnected(docName) {
   if (!docName || openConnections.has(docName)) return
 
   const filePath = join(FOLDER, docName)
-  if (!filePath.startsWith(FOLDER + '/')) return // path traversal / empty-name guard
-  if (!existsSync(filePath)) return // only sync files that exist locally
+  if (!filePath.startsWith(FOLDER + '/')) return
+  if (!existsSync(filePath)) return
 
   const ydoc = new Y.Doc()
   const ytext = ydoc.getText('content')
@@ -62,25 +64,21 @@ function ensureConnected(docName) {
     }
   }, 300)
 
+  // Token namespaces the Hocuspocus document: relay sees "<token>/<docName>"
   const provider = new HocuspocusProvider({
-    url: RELAY_WS,
-    name: docName,
+    url: `${RELAY_WS}/${TOKEN}/${docName}`,
+    name: `${TOKEN}/${docName}`,
     document: ydoc,
     WebSocketPolyfill: WebSocket,
     onSynced: () => {
       if (initialized) return
       initialized = true
-
-      // Push disk content if relay doc is empty (first open)
       if (ytext.length === 0 && existsSync(filePath)) {
         try {
           ytext.insert(0, readFileSync(filePath, 'utf-8'))
         } catch (e) { console.error('[push]', docName, e.message) }
       }
-
-      // Propagate relay (browser) edits back to disk
       ytext.observe(() => writeDebounced(ytext.toString()))
-
       console.log('[open]', docName)
     },
   })
@@ -89,12 +87,11 @@ function ensureConnected(docName) {
 }
 
 // ── Control plane: WebSocket to relay ─────────────────────────────────────
-// Used to: push file tree → relay, receive "open this file" signals ← relay
 
 let ctrlWs = null
 
 function connectControl() {
-  ctrlWs = new WebSocket(`${RELAY_WS}/__watcher__`)
+  ctrlWs = new WebSocket(`${RELAY_WS}/__watcher__?token=${TOKEN}`)
 
   ctrlWs.on('open', () => {
     console.log('[ctrl] connected')
@@ -113,7 +110,7 @@ function connectControl() {
     setTimeout(connectControl, 5000)
   })
 
-  ctrlWs.on('error', () => {}) // 'close' will fire and retry
+  ctrlWs.on('error', () => {})
 }
 
 function sendFiletree() {
@@ -131,7 +128,6 @@ chokidar
   .on('addDir', sendFiletree)
   .on('unlinkDir', sendFiletree)
   .on('change', filePath => {
-    // Skip writes we made ourselves
     if (Date.now() - (ownWrites.get(filePath) || 0) < 2000) return
 
     const docName = relative(FOLDER, filePath)
