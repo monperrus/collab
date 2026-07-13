@@ -89,12 +89,34 @@ function ensureConnected(docName) {
 // ── Control plane: WebSocket to relay ─────────────────────────────────────
 
 let ctrlWs = null
+let pingTimer = null
+
+function stopPing() {
+  if (pingTimer) { clearInterval(pingTimer); pingTimer = null }
+}
+
+function startPing(ws) {
+  stopPing()
+  let alive = true
+  pingTimer = setInterval(() => {
+    if (!alive) {
+      console.log('[ctrl] ping timeout, reconnecting...')
+      stopPing()
+      ws.terminate()
+      return
+    }
+    alive = false
+    try { ws.ping() } catch {}
+  }, 20000)
+  ws.on('pong', () => { alive = true })
+}
 
 function connectControl() {
   ctrlWs = new WebSocket(`${RELAY_WS}/__watcher__?token=${TOKEN}`)
 
   ctrlWs.on('open', () => {
     console.log('[ctrl] connected')
+    startPing(ctrlWs)
     sendFiletree()
   })
 
@@ -106,6 +128,7 @@ function connectControl() {
   })
 
   ctrlWs.on('close', () => {
+    stopPing()
     console.log('[ctrl] reconnecting in 5s...')
     setTimeout(connectControl, 5000)
   })
@@ -135,11 +158,21 @@ chokidar
     if (!conn) return
 
     try {
-      const content = readFileSync(filePath, 'utf-8')
+      const newContent = readFileSync(filePath, 'utf-8')
       const ytext = conn.ydoc.getText('content')
+      const oldContent = ytext.toString()
+      if (oldContent === newContent) return
+
+      // Compute changed region to preserve remote cursors
+      let start = 0
+      while (start < oldContent.length && start < newContent.length && oldContent[start] === newContent[start]) start++
+      let oldEnd = oldContent.length
+      let newEnd = newContent.length
+      while (oldEnd > start && newEnd > start && oldContent[oldEnd - 1] === newContent[newEnd - 1]) { oldEnd--; newEnd-- }
+
       conn.ydoc.transact(() => {
-        ytext.delete(0, ytext.length)
-        ytext.insert(0, content)
+        if (oldEnd > start) ytext.delete(start, oldEnd - start)
+        if (newEnd > start) ytext.insert(start, newContent.slice(start, newEnd))
       })
     } catch (e) { console.error('[sync]', filePath, e.message) }
   })
