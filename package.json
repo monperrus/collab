@@ -31,5 +31,9 @@
     "y-codemirror.next": "^0.3.5",
     "y-websocket": "^2.1.0",
     "yjs": "^13.6.27"
+  },
+  "devDependencies": {
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/legacy-modes": "^6.5.3"
   }
 }
