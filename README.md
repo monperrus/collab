@@ -15,8 +15,17 @@ gakoy-collab ./my-project
 ```
 
 The command prints a session URL. Send that URL to collaborators and keep the
-command running for the duration of the session. An optional second argument
-selects a compatible self-hosted relay:
+command running for the duration of the session:
+
+```
+$ gakoy-collab ./my-project
+Watching : /home/me/my-project
+Editor   : https://collab.gakoy.com/?token=3f9c1e7a2b4d6f80
+[ctrl] connected
+[open] notes.md
+```
+
+An optional second argument selects a compatible self-hosted relay:
 
 ```bash
 gakoy-collab ./my-project wss://collab.example.org
