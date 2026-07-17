@@ -25,12 +25,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/monperrus/realtime-collaborative.git"
+    "url": "git+https://github.com/monperrus/collab.git"
   },
   "bugs": {
-    "url": "https://github.com/monperrus/realtime-collaborative/issues"
+    "url": "https://github.com/monperrus/collab/issues"
   },
-  "homepage": "https://github.com/monperrus/realtime-collaborative#readme",
+  "homepage": "https://github.com/monperrus/collab#readme",
   "scripts": {
     "check": "node --check watcher.js",
     "test": "npm run check",
