@@ -7,8 +7,27 @@ import { randomBytes } from 'crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join, relative, resolve } from 'path'
 
-const FOLDER = resolve(process.argv[2] || '.')
-const RELAY_WS = (process.argv[3] || 'wss://collab.gakoy.com').replace(/\/$/, '')
+const args = process.argv.slice(2)
+
+if (args[0] === '--help' || args[0] === '-h') {
+  console.log(`Usage: gakoy-collab [folder] [relay-url]
+
+Share a local folder for real-time collaborative browser editing.
+
+Arguments:
+  folder     Folder to share (default: current directory)
+  relay-url  WebSocket URL of a compatible relay
+             (default: wss://collab.gakoy.com)`)
+  process.exit(0)
+}
+
+if (args.length > 2) {
+  console.error('Usage: gakoy-collab [folder] [relay-url]')
+  process.exit(1)
+}
+
+const FOLDER = resolve(args[0] || '.')
+const RELAY_WS = (args[1] || 'wss://collab.gakoy.com').replace(/\/$/, '')
 const RELAY_HTTP = RELAY_WS.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
 const TOKEN = randomBytes(16).toString('hex')
 

@@ -1,39 +1,46 @@
 {
-  "name": "collab-folder",
-  "version": "1.0.0",
-  "description": "CLI tool: watch a local folder, edit collaboratively in real-time from any browser",
+  "name": "@gakoy/collab",
+  "version": "0.1.0",
+  "description": "Share a local folder for real-time collaborative editing from any browser.",
   "type": "module",
   "bin": {
-    "collab-folder": "./server.js"
+    "gakoy-collab": "./watcher.js"
   },
+  "files": [
+    "watcher.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "collaboration",
+    "crdt",
+    "yjs",
+    "realtime",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/monperrus/realtime-collaborative.git"
+  },
+  "bugs": {
+    "url": "https://github.com/monperrus/realtime-collaborative/issues"
+  },
+  "homepage": "https://github.com/monperrus/realtime-collaborative#readme",
   "scripts": {
-    "build": "esbuild src/client.js --bundle --outfile=public/bundle.js --format=esm",
-    "prepare": "npm run build",
-    "start": "node server.js"
+    "check": "node --check watcher.js",
+    "test": "npm run check",
+    "prepack": "npm run test",
+    "prepublishOnly": "npm run test"
   },
   "dependencies": {
-    "@codemirror/commands": "^6.8.1",
-    "@codemirror/lang-css": "^6.3.1",
-    "@codemirror/lang-html": "^6.4.10",
-    "@codemirror/lang-javascript": "^6.2.3",
-    "@codemirror/lang-json": "^6.0.1",
-    "@codemirror/lang-markdown": "^6.3.2",
-    "@codemirror/lang-python": "^6.1.7",
-    "@codemirror/state": "^6.5.2",
-    "@codemirror/view": "^6.36.6",
     "@hocuspocus/provider": "^2.14.1",
-    "@hocuspocus/server": "^2.14.1",
     "chokidar": "^4.0.3",
-    "codemirror": "^6.0.1",
-    "esbuild": "^0.24.2",
-    "express": "^4.21.2",
     "ws": "^8.18.1",
-    "y-codemirror.next": "^0.3.5",
-    "y-websocket": "^2.1.0",
     "yjs": "^13.6.27"
-  },
-  "devDependencies": {
-    "@codemirror/language": "^6.12.4",
-    "@codemirror/legacy-modes": "^6.5.3"
   }
 }
