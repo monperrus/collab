@@ -10,10 +10,13 @@ Coding agents (Claude Code, and similar) edit files on disk directly, outside
 any editor. If a human wants to watch or co-edit those same files live in a
 browser — rather than reloading and diffing after the fact — plain file
 syncing isn't enough: both sides can write at once, and naive syncing drops
-or clobbers changes. `gakoy-collab` runs a [Yjs](https://yjs.dev) CRDT over
-each watched file, so edits from the agent (via the filesystem) and from
-collaborators (via the browser) merge automatically instead of conflicting.
-See [AI agents as CRDT peers](https://electric.ax/blog/2026/04/08/ai-agents-as-crdt-peers-with-yjs)
+or clobbers changes. This is the classic lost-update problem, now showing up
+between a human and an AI agent instead of two humans; see
+[The lost update problem, with humans and AI agents](https://www.monperrus.net/martin/lost-update-problem-humans-ai-agents)
+for a walkthrough of the failure mode. `gakoy-collab` runs a [Yjs](https://yjs.dev)
+CRDT over each watched file, so edits from the agent (via the filesystem) and
+from collaborators (via the browser) merge automatically instead of
+conflicting. See [AI agents as CRDT peers](https://electric.ax/blog/2026/04/08/ai-agents-as-crdt-peers-with-yjs)
 for a good treatment of why this needs a CRDT rather than a diff/patch loop.
 
 ## Install and use
