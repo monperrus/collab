@@ -39,10 +39,10 @@ console.log(`Editor   : ${RELAY_HTTP}/?token=${TOKEN}`)
 function getFileTree(dir, base = dir) {
   try {
     return readdirSync(dir)
-      .filter(f => !f.startsWith('.') && f !== 'node_modules')
       .sort()
       .flatMap(name => {
         const full = join(dir, name)
+        if (isIgnored(full)) return []
         const rel = relative(base, full)
         try {
           const stat = statSync(full)
@@ -163,8 +163,30 @@ function sendFiletree() {
 
 // ── Local file watcher ────────────────────────────────────────────────────
 
-chokidar
-  .watch(FOLDER, { ignoreInitial: true, ignored: /(^|[/\\])\./, ignorePermissionErrors: true })
+// Ignore directories that cannot be usefully shared and the short-lived files
+// produced by editors and build tools. In particular, watching every temporary
+// file can exhaust Linux's inotify quota before chokidar has a chance to remove
+// its watcher again.
+function isIgnored(filePath) {
+  const name = filePath.split(/[\\/]/).pop()
+  return filePath !== FOLDER && (
+    /(^|[\\/])(node_modules|\.git)([\\/]|$)/.test(filePath) ||
+    name.startsWith('.') ||
+    /(?:~|\.(?:sw[op]|tmp|temp|bak)|\.tmp\.[^\\/]+)$/i.test(name)
+  )
+}
+
+let watcher
+let pollingFallbackStarted = false
+
+function startWatcher(usePolling = false) {
+  watcher = chokidar
+    .watch(FOLDER, {
+      ignoreInitial: true,
+      ignored: isIgnored,
+      ignorePermissionErrors: true,
+      usePolling,
+    })
   .on('add', sendFiletree)
   .on('unlink', sendFiletree)
   .on('addDir', sendFiletree)
@@ -195,5 +217,21 @@ chokidar
       })
     } catch (e) { console.error('[sync]', filePath, e.message) }
   })
+  .on('error', error => {
+    console.error('[watch]', error.message)
+    if (error.code !== 'ENOSPC' || pollingFallbackStarted) return
+
+    // The system-wide inotify limit is exhausted. Polling does not use
+    // inotify, so it keeps the collaboration session alive without requiring
+    // the user to change a kernel setting or restart other applications.
+    pollingFallbackStarted = true
+    console.warn('[watch] inotify limit reached; restarting with polling')
+    watcher.close()
+      .catch(closeError => console.error('[watch]', closeError.message))
+      .finally(() => startWatcher(true))
+  })
+}
+
+startWatcher()
 
 connectControl()
