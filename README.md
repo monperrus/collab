@@ -1,13 +1,14 @@
 # Gakoy Collab
 
-`@gakoy/collab` shares a local folder through the Gakoy relay for real-time,
-browser-based collaborative editing. It synchronizes text files in both directions
-while the command is running.
+`@gakoy/collab` shares a local folder for smooth real-time collaborative editing
+with your coding agent. Your agent edits files on disk; you edit the same files
+live in the browser, at the same time, without either side clobbering the other.
+It synchronizes text files in both directions while the command is running.
 
 ## The problem
 
 Coding agents (Claude Code, and similar) edit files on disk directly, outside
-any editor. If a human wants to watch or co-edit those same files live in a
+any editor. If you want to watch or co-edit those same files live in a
 browser — rather than reloading and diffing after the fact — plain file
 syncing isn't enough: both sides can write at once, and naive syncing drops
 or clobbers changes. This is the classic lost-update problem, now showing up
@@ -15,8 +16,9 @@ between a human and an AI agent instead of two humans; see
 [The lost update problem, with humans and AI agents](https://www.monperrus.net/martin/lost-update-problem-humans-ai-agents)
 for a walkthrough of the failure mode. `gakoy-collab` runs a [Yjs](https://yjs.dev)
 CRDT over each watched file, so edits from the agent (via the filesystem) and
-from collaborators (via the browser) merge automatically instead of
-conflicting. See [AI agents as CRDT peers](https://electric.ax/blog/2026/04/08/ai-agents-as-crdt-peers-with-yjs)
+from you or other collaborators (via the browser) merge automatically instead of
+conflicting — the agent becomes just another peer in the session.
+See [AI agents as CRDT peers](https://electric.ax/blog/2026/04/08/ai-agents-as-crdt-peers-with-yjs)
 for a good treatment of why this needs a CRDT rather than a diff/patch loop.
 
 ## Install and use
@@ -29,8 +31,9 @@ npm install --global @gakoy/collab
 gakoy-collab ./my-project
 ```
 
-The command prints a session URL. Send that URL to collaborators and keep the
-command running for the duration of the session:
+Point it at the folder your coding agent is working in. The command prints a
+session URL: open it to edit alongside the agent, or send it to collaborators.
+Keep the command running for the duration of the session:
 
 ```
 $ gakoy-collab ./my-project
