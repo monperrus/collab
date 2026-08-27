@@ -6,7 +6,7 @@ on:
       - main
 
 # npm versions are immutable. Queue runs so two quick pushes cannot calculate
-# and publish the same next patch version concurrently.
+# and publish the same next minor version concurrently.
 concurrency:
   group: npm-publish-main
   cancel-in-progress: false
@@ -53,8 +53,8 @@ jobs:
 
           let nextVersion = localVersion
           if (publishedVersion && compare(localVersion, publishedVersion) <= 0) {
-            const [major, minor, patch] = parse(publishedVersion)
-            nextVersion = `${major}.${minor}.${patch + 1}`
+            const [major, minor] = parse(publishedVersion)
+            nextVersion = `${major}.${minor + 1}.0`
             packageJson.version = nextVersion
             writeFileSync('package.json', `${JSON.stringify(packageJson, null, 2)}\n`)
           }
