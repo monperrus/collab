@@ -2,8 +2,14 @@ name: Publish npm package
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+
+# npm versions are immutable. Queue runs so two quick pushes cannot calculate
+# and publish the same next patch version concurrently.
+concurrency:
+  group: npm-publish-main
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -20,5 +26,40 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm ci
+      - name: Set the next publishable version
+        run: |
+          package_name=$(node -p "require('./package.json').name")
+          published_version=$(npm view "$package_name" version 2>/dev/null || true)
+          PUBLISHED_VERSION="$published_version" node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs'
+
+          const packageJson = JSON.parse(readFileSync('package.json', 'utf8'))
+          const localVersion = packageJson.version
+          const publishedVersion = process.env.PUBLISHED_VERSION
+
+          const parse = version => {
+            const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version)
+            if (!match) throw new Error(`Expected a stable semver version, got ${version}`)
+            return match.slice(1).map(Number)
+          }
+          function compare(left, right) {
+            const a = parse(left)
+            const b = parse(right)
+            for (let index = 0; index < a.length; index++) {
+              if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1
+            }
+            return 0
+          }
+
+          let nextVersion = localVersion
+          if (publishedVersion && compare(localVersion, publishedVersion) <= 0) {
+            const [major, minor, patch] = parse(publishedVersion)
+            nextVersion = `${major}.${minor}.${patch + 1}`
+            packageJson.version = nextVersion
+            writeFileSync('package.json', `${JSON.stringify(packageJson, null, 2)}\n`)
+          }
+
+          console.log(`Publishing ${packageJson.name}@${nextVersion} (npm latest: ${publishedVersion || 'not yet published'})`)
+          NODE
       - run: npm test
       - run: npm publish
