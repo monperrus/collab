@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Title the desktop window `collab: <shared folder>`.
+
+## 0.3.0
+
 - Open the editor in a standalone desktop window (browser application mode)
   instead of only printing the URL; `--no-window` restores the old behaviour.
 

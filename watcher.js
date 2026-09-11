@@ -45,7 +45,7 @@ console.log(`Editor   : ${EDITOR_URL}`)
 
 // The URL stays printed so it can be shared with collaborators; the window is
 // for the local user, who wants an application, not a tab.
-if (OPEN_WINDOW && !openAppWindow(EDITOR_URL)) {
+if (OPEN_WINDOW && !openAppWindow(EDITOR_URL, `collab: ${FOLDER}`)) {
   console.log('Window   : none available, open the URL above manually')
 }
 

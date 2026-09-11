@@ -44,6 +44,10 @@ Editor   : https://collab.gakoy.com/?token=3f9c1e7a2b4d6f80
 [open] notes.md
 ```
 
+The window is titled `collab: <shared folder>`, so several sessions stay
+distinguishable in alt-tab and in the taskbar. Titling needs `wmctrl` or
+`xdotool` on X11; without them the window keeps the generic page title.
+
 The window is rendered by an installed browser in application mode (Chromium,
 Chrome, Brave, Vivaldi, Edge or GNOME Web), using a dedicated profile under
 `~/.cache/gakoy-collab/` so it keeps its size and position and stays out of your
