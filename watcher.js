@@ -6,23 +6,30 @@ import chokidar from 'chokidar'
 import { randomBytes } from 'crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join, relative, resolve } from 'path'
+import { openAppWindow } from './app-window.js'
 
-const args = process.argv.slice(2)
+const argv = process.argv.slice(2)
 
-if (args[0] === '--help' || args[0] === '-h') {
-  console.log(`Usage: gakoy-collab [folder] [relay-url]
+if (argv[0] === '--help' || argv[0] === '-h') {
+  console.log(`Usage: gakoy-collab [folder] [relay-url] [options]
 
 Share a local folder for real-time collaborative browser editing.
 
 Arguments:
-  folder     Folder to share (default: current directory)
-  relay-url  WebSocket URL of a compatible relay
-             (default: wss://collab.gakoy.com)`)
+  folder       Folder to share (default: current directory)
+  relay-url    WebSocket URL of a compatible relay
+               (default: wss://collab.gakoy.com)
+
+Options:
+  --no-window  Only print the editor URL, do not open a desktop window`)
   process.exit(0)
 }
 
+const OPEN_WINDOW = !argv.includes('--no-window')
+const args = argv.filter(arg => arg !== '--no-window')
+
 if (args.length > 2) {
-  console.error('Usage: gakoy-collab [folder] [relay-url]')
+  console.error('Usage: gakoy-collab [folder] [relay-url] [--no-window]')
   process.exit(1)
 }
 
@@ -31,8 +38,16 @@ const RELAY_WS = (args[1] || 'wss://collab.gakoy.com').replace(/\/$/, '')
 const RELAY_HTTP = RELAY_WS.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
 const TOKEN = randomBytes(16).toString('hex')
 
+const EDITOR_URL = `${RELAY_HTTP}/?token=${TOKEN}`
+
 console.log(`Watching : ${FOLDER}`)
-console.log(`Editor   : ${RELAY_HTTP}/?token=${TOKEN}`)
+console.log(`Editor   : ${EDITOR_URL}`)
+
+// The URL stays printed so it can be shared with collaborators; the window is
+// for the local user, who wants an application, not a tab.
+if (OPEN_WINDOW && !openAppWindow(EDITOR_URL)) {
+  console.log('Window   : none available, open the URL above manually')
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Open the editor in a standalone desktop window (browser application mode)
+  instead of only printing the URL; `--no-window` restores the old behaviour.
+
 ## 0.1.1
 
 - Add `license` and `author` fields to `package.json`.

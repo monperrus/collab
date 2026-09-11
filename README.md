@@ -31,9 +31,10 @@ npm install --global @gakoy/collab
 gakoy-collab ./my-project
 ```
 
-Point it at the folder your coding agent is working in. The command prints a
-session URL: open it to edit alongside the agent, or send it to collaborators.
-Keep the command running for the duration of the session:
+Point it at the folder your coding agent is working in. The command opens the
+editor in its own desktop window — no tabs, its own entry in alt-tab and in the
+taskbar — and prints the session URL so you can also open it elsewhere or send
+it to collaborators. Keep the command running for the duration of the session:
 
 ```
 $ gakoy-collab ./my-project
@@ -41,6 +42,16 @@ Watching : /home/me/my-project
 Editor   : https://collab.gakoy.com/?token=3f9c1e7a2b4d6f80
 [ctrl] connected
 [open] notes.md
+```
+
+The window is rendered by an installed browser in application mode (Chromium,
+Chrome, Brave, Vivaldi, Edge or GNOME Web), using a dedicated profile under
+`~/.cache/gakoy-collab/` so it keeps its size and position and stays out of your
+everyday browsing session. Pass `--no-window` to only print the URL — useful
+over SSH, in a container, or when you prefer your own browser:
+
+```bash
+gakoy-collab ./my-project --no-window
 ```
 
 An optional second argument selects a compatible self-hosted relay:
