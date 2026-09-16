@@ -38,8 +38,8 @@
   },
   "homepage": "https://github.com/monperrus/collab#readme",
   "scripts": {
-    "check": "node --check watcher.js && node --check app-window.js && node --check merge.js",
-    "test": "npm run check && node --test \"test/*.test.js\"",
+    "check": "node --check watcher.js && node --check app-window.js && node --check merge.js && node --check test/mock-relay.js",
+    "test": "npm run check && node --test --test-force-exit \"test/*.test.js\"",
     "prepack": "npm run test",
     "prepublishOnly": "npm run test"
   },
@@ -48,5 +48,8 @@
     "chokidar": "^4.0.3",
     "ws": "^8.18.1",
     "yjs": "^13.6.27"
+  },
+  "devDependencies": {
+    "@hocuspocus/server": "^2.15.3"
   }
 }

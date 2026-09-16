@@ -49,7 +49,16 @@ Watching : /home/me/my-project
 Editor   : https://collab.gakoy.com/?token=3f9c1e7a2b4d6f80
 [ctrl] connected
 [open] notes.md
+[new] draft.md
 ```
+
+Files are shared in both directions. A file that already exists is shared as
+soon as someone opens it (`[open]`), and a file that does not exist yet is
+created on disk, with its parent directories, as soon as someone writes into
+its document (`[new]`) — so a collaborator, or a coding agent connected to the
+session, can add files to the shared folder. Opening a document creates nothing
+by itself, and a document naming a path outside the shared folder or inside an
+ignored directory (`.git`, `node_modules`, dotfiles) is refused.
 
 The window is titled `collab: <shared folder>`, so several sessions stay
 distinguishable in alt-tab and in the taskbar. Titling needs `wmctrl` or

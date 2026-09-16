@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Share files that do not exist yet: writing into the document of an unknown
+  path creates the file, and its parent directories, on disk. A collaborator —
+  a human in the editor, or a coding agent connected to the session — can now
+  add files to the shared folder. Merely connecting to a document creates
+  nothing; paths outside the shared folder or inside an ignored directory are
+  refused.
 - Title the desktop window `collab: <shared folder>`.
 - Never overwrite a file that changed on disk since the last write: re-read it,
   merge the edits made meanwhile into the shared document, and write the merged

@@ -4,8 +4,8 @@ import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
 import chokidar from 'chokidar'
 import { randomBytes } from 'crypto'
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
-import { join, relative, resolve } from 'path'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs'
+import { dirname, join, relative, resolve } from 'path'
 import { openAppWindow } from './app-window.js'
 import { mergeExternalEdits, setText } from './merge.js'
 
@@ -71,6 +71,17 @@ function getFileTree(dir, base = dir) {
   } catch { return [] }
 }
 
+// `isIgnored` judges one path; a document name is a whole chain of them, and a
+// file is shareable only if every directory leading to it is.
+function isIgnoredPath(filePath) {
+  let path = FOLDER
+  for (const segment of relative(FOLDER, filePath).split(/[\\/]/)) {
+    path = join(path, segment)
+    if (isIgnored(path)) return true
+  }
+  return false
+}
+
 function debounce(fn, ms) {
   let t
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms) }
@@ -109,9 +120,13 @@ function ingestFromDisk(docName, conn) {
 function ensureConnected(docName) {
   if (!docName || openConnections.has(docName)) return
 
+  // A document may name a file that does not exist yet: a collaborator — a
+  // human in the editor, or a coding agent connected to the session — creates
+  // a file by writing into its document. The file appears on disk as soon as
+  // the document has content, so an accidental connection creates nothing.
   const filePath = join(FOLDER, docName)
   if (!filePath.startsWith(FOLDER + '/')) return
-  if (!existsSync(filePath)) return
+  if (isIgnoredPath(filePath)) return
 
   const ydoc = new Y.Doc()
   const ytext = ydoc.getText('content')
@@ -129,9 +144,21 @@ function ensureConnected(docName) {
 
     const content = ytext.toString()
     if (content === lastSeen.get(filePath)) return
+
+    // Creating a file is a deliberate act, so an empty document is not one:
+    // connecting to a document is enough to reach this point, and a session
+    // must not litter the folder with empty files.
+    const creating = !existsSync(filePath)
+    if (creating && content === '') return
+
     try {
+      if (creating) mkdirSync(dirname(filePath), { recursive: true })
       writeFileSync(filePath, content, 'utf-8')
       lastSeen.set(filePath, content)
+      if (creating) {
+        console.log('[new]', docName)
+        sendFiletree()
+      }
     } catch (e) {
       console.error('[write]', docName, e.message)
     }
