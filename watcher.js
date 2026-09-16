@@ -185,6 +185,10 @@ function ensureConnected(docName) {
         } catch (e) { console.error('[push]', docName, e.message) }
       }
       ytext.observe(() => writeDebounced())
+      // The document may already carry content we have never seen — a peer
+      // that wrote into it before we joined, which is exactly how a file gets
+      // created. Observing is not enough for that, it happened before.
+      writeDebounced()
       console.log('[open]', docName)
     },
   })

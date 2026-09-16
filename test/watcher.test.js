@@ -70,8 +70,9 @@ async function session() {
 test('a peer writing into an unknown document creates the file', async () => {
   const s = await session()
   try {
+    // Writing straight away, before the watcher has joined the document: the
+    // content is already there when it does, and must still reach the disk.
     const { ytext } = s.peer('created.md')
-    await sleep(300)
     ytext.insert(0, 'written from the session\n')
 
     const path = join(s.folder, 'created.md')
