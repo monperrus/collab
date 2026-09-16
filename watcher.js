@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto'
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs'
 import { join, relative, resolve } from 'path'
 import { openAppWindow } from './app-window.js'
+import { mergeExternalEdits, setText } from './merge.js'
 
 const argv = process.argv.slice(2)
 
@@ -78,7 +79,32 @@ function debounce(fn, ms) {
 // ── Per-file HocuspocusProvider connections to the relay ──────────────────
 
 const openConnections = new Map()
-const ownWrites = new Map()
+
+// filePath -> content of the file as we last saw it, i.e. what we last wrote or
+// last read from disk. It is the common ancestor used to detect and merge the
+// edits made by the agent between two of our own writes.
+const lastSeen = new Map()
+
+function logMerge(docName, outcome) {
+  if (outcome === 'merged') console.log('[merge]', docName, 'merged edits made on disk')
+  if (outcome === 'conflict') console.warn('[merge]', docName, 'same region edited on both sides, kept the version on disk')
+}
+
+// Pull the edits made on disk into the shared document. Returns false when the
+// file could not be read.
+function ingestFromDisk(docName, conn) {
+  let disk
+  try { disk = readFileSync(conn.filePath, 'utf-8') } catch (e) {
+    console.error('[read]', docName, e.message)
+    return false
+  }
+  if (disk === lastSeen.get(conn.filePath)) return true // our own write coming back
+
+  const ytext = conn.ydoc.getText('content')
+  logMerge(docName, mergeExternalEdits(conn.ydoc, ytext, lastSeen.get(conn.filePath), disk))
+  lastSeen.set(conn.filePath, disk)
+  return true
+}
 
 function ensureConnected(docName) {
   if (!docName || openConnections.has(docName)) return
@@ -91,9 +117,22 @@ function ensureConnected(docName) {
   const ytext = ydoc.getText('content')
   let initialized = false
 
-  const writeDebounced = debounce(content => {
-    ownWrites.set(filePath, Date.now())
-    try { writeFileSync(filePath, content, 'utf-8') } catch (e) {
+  // Never write blindly: the file may have been edited on disk since our last
+  // write, either by the agent or by the user's editor, and the change event
+  // may not have reached us yet. Re-read it, merge whatever is new into the
+  // document, and write the merged result.
+  const writeDebounced = debounce(() => {
+    const conn = openConnections.get(docName)
+    if (!conn) return
+    // A file we cannot read is a file we must not overwrite.
+    if (existsSync(filePath) && !ingestFromDisk(docName, conn)) return
+
+    const content = ytext.toString()
+    if (content === lastSeen.get(filePath)) return
+    try {
+      writeFileSync(filePath, content, 'utf-8')
+      lastSeen.set(filePath, content)
+    } catch (e) {
       console.error('[write]', docName, e.message)
     }
   }, 300)
@@ -107,12 +146,18 @@ function ensureConnected(docName) {
     onSynced: () => {
       if (initialized) return
       initialized = true
-      if (ytext.length === 0 && existsSync(filePath)) {
+      // The relay may still hold a document from an earlier session, older
+      // than the file the agent has been editing meanwhile. Disk always wins
+      // on connect: every document edit is written out within a fraction of a
+      // second, so the file is never behind the relay.
+      if (existsSync(filePath)) {
         try {
-          ytext.insert(0, readFileSync(filePath, 'utf-8'))
+          const disk = readFileSync(filePath, 'utf-8')
+          setText(ydoc, ytext, disk)
+          lastSeen.set(filePath, disk)
         } catch (e) { console.error('[push]', docName, e.message) }
       }
-      ytext.observe(() => writeDebounced(ytext.toString()))
+      ytext.observe(() => writeDebounced())
       console.log('[open]', docName)
     },
   })
@@ -206,31 +251,13 @@ function startWatcher(usePolling = false) {
   .on('unlink', sendFiletree)
   .on('addDir', sendFiletree)
   .on('unlinkDir', sendFiletree)
+  // Our own writes are recognised by their content, not by a time window: a
+  // write from the agent landing right after one of ours must never be taken
+  // for an echo and skipped, otherwise it is lost.
   .on('change', filePath => {
-    if (Date.now() - (ownWrites.get(filePath) || 0) < 2000) return
-
     const docName = relative(FOLDER, filePath)
     const conn = openConnections.get(docName)
-    if (!conn) return
-
-    try {
-      const newContent = readFileSync(filePath, 'utf-8')
-      const ytext = conn.ydoc.getText('content')
-      const oldContent = ytext.toString()
-      if (oldContent === newContent) return
-
-      // Compute changed region to preserve remote cursors
-      let start = 0
-      while (start < oldContent.length && start < newContent.length && oldContent[start] === newContent[start]) start++
-      let oldEnd = oldContent.length
-      let newEnd = newContent.length
-      while (oldEnd > start && newEnd > start && oldContent[oldEnd - 1] === newContent[newEnd - 1]) { oldEnd--; newEnd-- }
-
-      conn.ydoc.transact(() => {
-        if (oldEnd > start) ytext.delete(start, oldEnd - start)
-        if (newEnd > start) ytext.insert(start, newContent.slice(start, newEnd))
-      })
-    } catch (e) { console.error('[sync]', filePath, e.message) }
+    if (conn) ingestFromDisk(docName, conn)
   })
   .on('error', error => {
     console.error('[watch]', error.message)

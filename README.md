@@ -21,6 +21,13 @@ conflicting — the agent becomes just another peer in the session.
 See [AI agents as CRDT peers](https://electric.ax/blog/2026/04/08/ai-agents-as-crdt-peers-with-yjs)
 for a good treatment of why this needs a CRDT rather than a diff/patch loop.
 
+The CRDT only helps if the file on disk is never overwritten from a stale copy,
+so `gakoy-collab` checks before every write whether the file changed since its
+own last write. If it did, the edits made meanwhile are merged into the shared
+document first and the merged text is written; edits in separate regions are
+both kept, and if both sides changed the same region the version on disk wins
+and the merge is reported on the console.
+
 ## Install and use
 
 ```bash

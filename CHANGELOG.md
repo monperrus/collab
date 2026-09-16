@@ -3,6 +3,13 @@
 ## Unreleased
 
 - Title the desktop window `collab: <shared folder>`.
+- Never overwrite a file that changed on disk since the last write: re-read it,
+  merge the edits made meanwhile into the shared document, and write the merged
+  result. Own writes are now recognised by content instead of by a two-second
+  window, which used to drop any edit landing inside it.
+- On connect, reconcile the shared document with the file rather than only
+  filling an empty document, so a stale document held by the relay can no
+  longer overwrite newer content on disk.
 
 ## 0.3.0
 
