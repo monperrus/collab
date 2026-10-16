@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
 - Accept a file argument: `gakoy-collab notes.md` shares the folder holding
   the file and opens the editor on that file alone, without the file explorer
