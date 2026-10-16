@@ -60,7 +60,14 @@ session, can add files to the shared folder. Opening a document creates nothing
 by itself, and a document naming a path outside the shared folder or inside an
 ignored directory (`.git`, `node_modules`, dotfiles) is refused.
 
-The window is titled `collab: <shared folder>`, so several sessions stay
+Pass a file instead of a folder to edit that file alone: its folder is shared,
+and the editor opens directly on the file, without the file explorer:
+
+```bash
+gakoy-collab related-work.md
+```
+
+The window is titled `collab: <shared folder or file>`, so several sessions stay
 distinguishable in alt-tab and in the taskbar. Titling needs `wmctrl` or
 `xdotool` on X11; without them the window keeps the generic page title.
 

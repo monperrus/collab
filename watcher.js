@@ -5,19 +5,21 @@ import * as Y from 'yjs'
 import chokidar from 'chokidar'
 import { randomBytes } from 'crypto'
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs'
-import { dirname, join, relative, resolve } from 'path'
+import { basename, dirname, join, relative, resolve } from 'path'
 import { openAppWindow } from './app-window.js'
 import { mergeExternalEdits, setText } from './merge.js'
 
 const argv = process.argv.slice(2)
 
 if (argv[0] === '--help' || argv[0] === '-h') {
-  console.log(`Usage: gakoy-collab [folder] [relay-url] [options]
+  console.log(`Usage: gakoy-collab [folder|file] [relay-url] [options]
 
 Share a local folder for real-time collaborative browser editing.
 
 Arguments:
   folder       Folder to share (default: current directory)
+  file         File to edit: shares its folder and opens the editor on that
+               file alone, without the file explorer
   relay-url    WebSocket URL of a compatible relay
                (default: wss://collab.gakoy.com)
 
@@ -30,27 +32,35 @@ const OPEN_WINDOW = !argv.includes('--no-window')
 const args = argv.filter(arg => arg !== '--no-window')
 
 if (args.length > 2) {
-  console.error('Usage: gakoy-collab [folder] [relay-url] [--no-window]')
+  console.error('Usage: gakoy-collab [folder|file] [relay-url] [--no-window]')
   process.exit(1)
 }
 
-const FOLDER = resolve(args[0] || '.')
+// A file argument shares the folder holding it and opens the editor on it.
+const TARGET = resolve(args[0] || '.')
+const FILE = isFile(TARGET) ? basename(TARGET) : null
+const FOLDER = FILE ? dirname(TARGET) : TARGET
 const RELAY_WS = (args[1] || 'wss://collab.gakoy.com').replace(/\/$/, '')
 const RELAY_HTTP = RELAY_WS.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
 const TOKEN = randomBytes(16).toString('hex')
 
-const EDITOR_URL = `${RELAY_HTTP}/?token=${TOKEN}`
+const EDITOR_URL = `${RELAY_HTTP}/?token=${TOKEN}` +
+  (FILE ? `&file=${encodeURIComponent(FILE)}` : '')
 
 console.log(`Watching : ${FOLDER}`)
 console.log(`Editor   : ${EDITOR_URL}`)
 
 // The URL stays printed so it can be shared with collaborators; the window is
 // for the local user, who wants an application, not a tab.
-if (OPEN_WINDOW && !openAppWindow(EDITOR_URL, `collab: ${FOLDER}`)) {
+if (OPEN_WINDOW && !openAppWindow(EDITOR_URL, `collab: ${TARGET}`)) {
   console.log('Window   : none available, open the URL above manually')
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+function isFile(path) {
+  try { return statSync(path).isFile() } catch { return false }
+}
 
 function getFileTree(dir, base = dir) {
   try {
@@ -308,3 +318,7 @@ function startWatcher(usePolling = false) {
 startWatcher()
 
 connectControl()
+
+// The editor window may open the file before the relay knows this session, in
+// which case nobody would ask us to share it: join its document right away.
+if (FILE) ensureConnected(FILE)

@@ -153,6 +153,27 @@ test('a document cannot create a file in an ignored directory', async () => {
   }
 })
 
+test('a file argument shares its folder and opens that file alone', async () => {
+  const relay = await startRelay()
+  const folder = mkdtempSync(join(tmpdir(), 'collab-test-'))
+  writeFileSync(join(folder, 'related work.md'), 'draft\n')
+
+  const watcher = spawn('node', [WATCHER, join(folder, 'related work.md'), `ws://127.0.0.1:${relay.port}`, '--no-window'])
+  let output = ''
+  watcher.stdout.on('data', d => { output += d })
+  watcher.stderr.on('data', d => { output += d })
+  try {
+    // Joined without anyone asking for it: the editor may open the document
+    // before the relay knows the session.
+    await until(() => output.includes('[open] related work.md'))
+    assert.match(output, new RegExp(`Watching : ${folder}\\n`))
+    assert.match(output, /token=[0-9a-f]+&file=related%20work\.md/)
+  } finally {
+    watcher.kill()
+    await relay.close()
+  }
+})
+
 test('an existing file is still shared, and edits reach the disk', async () => {
   const s = await session()
   try {

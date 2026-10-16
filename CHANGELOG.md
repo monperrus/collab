@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Accept a file argument: `gakoy-collab notes.md` shares the folder holding
+  the file and opens the editor on that file alone, without the file explorer
+  (needs a relay that understands the `file` URL parameter).
+
 - Share files that do not exist yet: writing into the document of an unknown
   path creates the file, and its parent directories, on disk. A collaborator —
   a human in the editor, or a coding agent connected to the session — can now
