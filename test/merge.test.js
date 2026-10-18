@@ -25,6 +25,49 @@ test('setText only rewrites the changed region', () => {
   assert.deepEqual(deltas, [[{ retain: 6 }, { insert: 'brave ' }]])
 })
 
+// The lines a human is reading in the browser, between two distant agent
+// edits. Deleting and reinserting them makes the editor window jump.
+const lines = n => Array.from({ length: n }, (_, i) => `line ${i}\n`).join('')
+
+test('distant edits leave the text between them untouched', () => {
+  const before = lines(100)
+  const after = before.replace('line 3\n', 'line 3 edited\n').replace('line 97\n', 'line 97 edited\n')
+  const { ydoc, ytext } = doc(before)
+  const deltas = []
+  ytext.observe(e => deltas.push(e.changes.delta))
+  setText(ydoc, ytext, after)
+  assert.equal(ytext.toString(), after)
+  assert.deepEqual(deltas, [[
+    { retain: before.indexOf('line 3\n') + 6 }, { insert: ' edited' },
+    { retain: before.indexOf('line 97\n') - before.indexOf('line 3\n') + 1 }, { insert: ' edited' },
+  ]])
+})
+
+test('a merge leaves the text between distant edits untouched', () => {
+  const base = lines(100)
+  const browser = base.replace('line 50\n', 'line 50 typed\n')
+  const disk = base.replace('line 3\n', 'line 3 agent\n').replace('line 97\n', 'line 97 agent\n')
+  const { ydoc, ytext } = doc(browser)
+  const deleted = []
+  ytext.observe(e => deleted.push(...e.changes.delta.filter(op => op.delete)))
+  assert.equal(mergeExternalEdits(ydoc, ytext, base, disk), 'merged')
+  assert.equal(ytext.toString(), disk.replace('line 50\n', 'line 50 typed\n'))
+  assert.deepEqual(deleted, [])
+})
+
+test('a conflict still only rewrites the changed hunks', () => {
+  const base = lines(100)
+  const browser = base.replace('line 3\n', 'row 3\n')
+  const disk = base.replace('line 3\n', 'item 3\n').replace('line 97\n', 'line 97 agent\n')
+  const { ydoc, ytext } = doc(browser)
+  const deltas = []
+  ytext.observe(e => deltas.push(e.changes.delta))
+  assert.equal(mergeExternalEdits(ydoc, ytext, base, disk), 'conflict')
+  assert.equal(ytext.toString(), disk)
+  const touched = deltas[0].filter(op => !op.retain).map(op => op.insert ?? op.delete)
+  assert.deepEqual(touched, [3, 'item', ' agent'])
+})
+
 test('no external edit leaves the document alone', () => {
   const { ydoc, ytext } = doc('typed by the browser')
   assert.equal(mergeExternalEdits(ydoc, ytext, 'on disk', 'on disk'), 'noop')

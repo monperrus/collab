@@ -9,10 +9,16 @@
 //
 // `base` is the content of the file as of our last write or read: the common
 // ancestor of the on-disk version and the document version.
+//
+// Every change is applied to the document as the smallest set of separate
+// hunks. The text between two edits is never deleted and reinserted: the
+// browser editor anchors its scroll position on that text, and replacing it
+// makes the window of a human reading elsewhere in the file jump.
+
+import { diffLines } from 'diff'
 
 // Minimal changed region between two strings: the text differs only in
-// [start, aEnd) of `a`, which corresponds to [start, bEnd) of `b`. Working on
-// the smallest possible region keeps remote cursors and selections in place.
+// [start, aEnd) of `a`, which corresponds to [start, bEnd) of `b`.
 export function diffRegion(a, b) {
   let start = 0
   while (start < a.length && start < b.length && a[start] === b[start]) start++
@@ -22,16 +28,62 @@ export function diffRegion(a, b) {
   return { start, aEnd, bEnd }
 }
 
-// Make the shared text equal `target`, touching only the changed region.
+// Changed hunks between two strings, in order and non-overlapping: `a` from
+// aStart to aEnd becomes `b` from bStart to bEnd. Hunks are found line by line,
+// then narrowed to the characters that changed, so two edits on one line stay
+// distinguishable from an edit spanning it.
+export function diffHunks(a, b) {
+  const hunks = []
+  let aPos = 0
+  let bPos = 0
+  let open = null
+  const close = () => {
+    if (!open) return
+    const r = diffRegion(a.slice(open.aStart, aPos), b.slice(open.bStart, bPos))
+    if (r.aEnd > r.start || r.bEnd > r.start) {
+      hunks.push({
+        aStart: open.aStart + r.start, aEnd: open.aStart + r.aEnd,
+        bStart: open.bStart + r.start, bEnd: open.bStart + r.bEnd,
+      })
+    }
+    open = null
+  }
+  for (const part of diffLines(a, b)) {
+    if (!part.added && !part.removed) {
+      close()
+      aPos += part.value.length
+      bPos += part.value.length
+      continue
+    }
+    open ??= { aStart: aPos, bStart: bPos }
+    if (part.removed) aPos += part.value.length
+    else bPos += part.value.length
+  }
+  close()
+  return hunks
+}
+
+// Apply hunks of `source` to the shared text, `at` giving each hunk's start in
+// the shared text. Applied from the last to the first, so the positions of the
+// hunks not yet applied stay valid.
+function applyHunks(ydoc, ytext, hunks, source, at) {
+  ydoc.transact(() => {
+    for (const hunk of [...hunks].reverse()) {
+      const pos = at(hunk)
+      if (hunk.aEnd > hunk.aStart) ytext.delete(pos, hunk.aEnd - hunk.aStart)
+      if (hunk.bEnd > hunk.bStart) ytext.insert(pos, source.slice(hunk.bStart, hunk.bEnd))
+    }
+  })
+}
+
+// Make the shared text equal `target`, touching only the changed hunks.
 export function setText(ydoc, ytext, target) {
   const current = ytext.toString()
   if (current === target) return
-  const { start, aEnd, bEnd } = diffRegion(current, target)
-  ydoc.transact(() => {
-    if (aEnd > start) ytext.delete(start, aEnd - start)
-    if (bEnd > start) ytext.insert(start, target.slice(start, bEnd))
-  })
+  applyHunks(ydoc, ytext, diffHunks(current, target), target, hunk => hunk.aStart)
 }
+
+const overlaps = (x, y) => !(x.aEnd <= y.aStart || y.aEnd <= x.aStart)
 
 // Merge the edits made on disk since `base` into the shared document.
 //
@@ -51,20 +103,19 @@ export function mergeExternalEdits(ydoc, ytext, base, disk) {
   if (base === disk) return 'noop'
   if (base == null || base === doc) { setText(ydoc, ytext, disk); return 'external' }
 
-  const ext = diffRegion(base, disk)
-  const loc = diffRegion(base, doc)
+  const ext = diffHunks(base, disk)
+  const loc = diffHunks(base, doc)
 
-  if (ext.aEnd <= loc.start || loc.aEnd <= ext.start) {
-    // Disjoint regions: replay the external edit at its position in the
-    // document, shifted by the length the document edit added or removed.
-    const shift = ext.start >= loc.aEnd ? loc.bEnd - loc.aEnd : 0
-    ydoc.transact(() => {
-      if (ext.aEnd > ext.start) ytext.delete(ext.start + shift, ext.aEnd - ext.start)
-      if (ext.bEnd > ext.start) ytext.insert(ext.start + shift, disk.slice(ext.start, ext.bEnd))
-    })
-    return 'merged'
+  if (ext.some(e => loc.some(l => overlaps(e, l)))) {
+    setText(ydoc, ytext, disk)
+    return 'conflict'
   }
 
-  setText(ydoc, ytext, disk)
-  return 'conflict'
+  // Replay each external hunk at its position in the document, shifted by the
+  // length the document edits before it added or removed.
+  const shift = e => loc
+    .filter(l => l.aEnd <= e.aStart)
+    .reduce((sum, l) => sum + (l.bEnd - l.bStart) - (l.aEnd - l.aStart), 0)
+  applyHunks(ydoc, ytext, ext, disk, e => e.aStart + shift(e))
+  return 'merged'
 }

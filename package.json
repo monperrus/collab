@@ -46,6 +46,7 @@
   "dependencies": {
     "@hocuspocus/provider": "^2.14.1",
     "chokidar": "^4.0.3",
+    "diff": "^9.0.0",
     "ws": "^8.18.1",
     "yjs": "^13.6.27"
   },

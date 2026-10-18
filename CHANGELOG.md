@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Keep the editor window still while the agent edits the file: disk edits
+  reach the shared document as separate hunks instead of one region spanning
+  from the first change to the last, which deleted and reinserted the lines a
+  human was reading in between and made the window jump. Separate edits on
+  both sides now also merge instead of conflicting when they interleave.
+
 ## 0.7.0
 
 - Accept a file argument: `gakoy-collab notes.md` shares the folder holding
