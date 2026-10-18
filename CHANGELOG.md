@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0
 
 - Keep the editor window still while the agent edits the file: disk edits
   reach the shared document as separate hunks instead of one region spanning
