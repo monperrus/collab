@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Go to line in the editor: Ctrl+G, or the toolbar button, asks for a line
+  (also `+N`/`-N`, `N%`, `line:column`) and moves the cursor there. Ctrl+G
+  replaces find-next, which stays on F3 (served by the relay; no CLI change).
+
 ## 0.9.0
 
 - Keep the editor window still while the agent edits the file: disk edits

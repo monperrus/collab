@@ -67,6 +67,10 @@ and the editor opens directly on the file, without the file explorer:
 gakoy-collab related-work.md
 ```
 
+To jump to a line, press Ctrl+G (or click "Go to line" in the toolbar) and
+type a line number; `+N`/`-N` move relative to the cursor, `N%` jumps to a
+fraction of the file, and `line:column` places the cursor on a column.
+
 The window is titled `collab: <shared folder or file>`, so several sessions stay
 distinguishable in alt-tab and in the taskbar. Titling needs `wmctrl` or
 `xdotool` on X11; without them the window keeps the generic page title.
