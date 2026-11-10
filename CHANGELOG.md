@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Ctrl-Z in the editor undoes only your own edits. It used to also undo the
+  other peers' edits and the loading of the file itself, so pressing it
+  enough times emptied the document, and the file on disk with it (served by
+  the relay; no CLI change).
 - Go to line in the editor: Ctrl+G, or the toolbar button, asks for a line
   (also `+N`/`-N`, `N%`, `line:column`) and moves the cursor there. Ctrl+G
   replaces find-next, which stays on F3 (served by the relay; no CLI change).
